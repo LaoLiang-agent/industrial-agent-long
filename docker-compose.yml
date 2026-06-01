@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  # EMQX MQTT Broker
+  emqx:
+    image: emqx/emqx:5.7.0
+    container_name: emqx
+    ports:
+      - "1883:1883"   # MQTT
+      - "8083:8083"   # WebSocket
+      - "18083:18083" # Dashboard
+    environment:
+      - EMQX_DASHBOARD__DEFAULT_USERNAME=admin
+      - EMQX_DASHBOARD__DEFAULT_PASSWORD=public
+    volumes:
+      - emqx-data:/opt/emqx/data
+      - emqx-log:/opt/emqx/log
+
+  # Future: TDEngine (time-series database)
+  # tdengine:
+  #   image: tdengine/tdengine:3.3.0.0
+  #   container_name: tdengine
+  #   ports:
+  #     - "6030:6030"   # REST
+  #     - "6041:6041"   # Native
+  #   environment:
+  #     - TAOS_FQDN=localhost
+  #   volumes:
+  #     - tdengine-data:/var/lib/taos
+
+volumes:
+  emqx-data:
+  emqx-log:
+  # tdengine-data:

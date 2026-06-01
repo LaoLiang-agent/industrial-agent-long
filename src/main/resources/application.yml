@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: industrial-agent-long
+  config:
+    import: optional:classpath:application-local.yml
+
+# DeepSeek API (OpenAI-compatible endpoint)
+langchain4j:
+  open-ai:
+    chat-model:
+      base-url: https://api.deepseek.com
+      api-key: ${DEEPSEEK_API_KEY:}
+      model-name: deepseek-chat
+      temperature: 0.3
+      max-tokens: 2048
+      log-requests: true
+      log-responses: true
+
+# MQTT broker (EMQX) for device simulator
+mqtt:
+  broker-url: tcp://localhost:1883
+  client-id: industrial-agent-long
+  topic-device-data: industrial/devices/+/data
+  topic-device-alarm: industrial/devices/+/alarm
+
+server:
+  port: 8080
