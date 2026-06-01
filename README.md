@@ -83,14 +83,14 @@ curl -X POST http://localhost:8080/api/agent/clear
 
 ## 技术栈
 
-| 组件 | 技术选型 |
-|------|---------|
+| 组件 | 技术选型                                 |
+|------|--------------------------------------|
 | LLM | DeepSeek (via OpenAI-compatible API) |
-| Agent 框架 | LangChain4j 0.35.0 |
-| 应用框架 | Spring Boot 3.3 |
-| 消息队列 | EMQX 5.7 (MQTT) |
-| 设备模拟 | Eclipse Paho MQTT Client |
-| 语言 | Java 17 |
+| Agent 框架 | LangChain4j 0.35.0                   |
+| 应用框架 | Spring Boot 3.3                      |
+| 消息队列 | EMQX 5.7 (MQTT)                      |
+| 设备模拟 | Eclipse Paho MQTT Client             |
+| 语言 | Java 21                              |
 
 ## 后续计划
 
