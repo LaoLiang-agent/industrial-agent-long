@@ -27,6 +27,12 @@ public class AgentConfig {
     @Value("${langchain4j.open-ai.chat-model.max-tokens}")
     private Integer maxTokens;
 
+    @Value("${langchain4j.open-ai.chat-model.log-requests}")
+    private Boolean logRequests;
+
+    @Value("${langchain4j.open-ai.chat-model.log-responses}")
+    private Boolean logResponses;
+
     @Bean
     public OpenAiChatModel chatModel() {
         return OpenAiChatModel.builder()
@@ -35,6 +41,8 @@ public class AgentConfig {
                 .modelName(modelName)
                 .temperature(temperature)
                 .maxTokens(maxTokens)
+                .logRequests(logRequests)
+                .logResponses(logResponses)
                 .timeout(Duration.ofSeconds(60))
                 .build();
     }
