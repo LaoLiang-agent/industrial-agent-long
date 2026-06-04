@@ -16,6 +16,11 @@ langchain4j:
       log-requests: true
       log-responses: true
 
+logging:
+  level:
+    dev.ai4j.openai4j: DEBUG
+    com.industrial.agent: DEBUG
+
 # MQTT broker (EMQX) for device simulator
 mqtt:
   broker-url: tcp://localhost:1883
