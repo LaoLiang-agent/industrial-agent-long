@@ -2,7 +2,9 @@ package com.industrial.agent.config;
 
 import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
+import dev.langchain4j.memory.chat.TokenWindowChatMemory;
 import dev.langchain4j.model.openai.OpenAiChatModel;
+import dev.langchain4j.model.openai.OpenAiTokenizer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -50,5 +52,15 @@ public class AgentConfig {
     @Bean
     public ChatMemory chatMemory() {
         return MessageWindowChatMemory.withMaxMessages(20);
+    }
+
+    @Bean
+    public ChatMemory shortMemory() {
+        return MessageWindowChatMemory.withMaxMessages(4);
+    }
+
+    @Bean
+    public ChatMemory tokenWindowMemory() {
+        return TokenWindowChatMemory.withMaxTokens(2000, new OpenAiTokenizer());
     }
 }
