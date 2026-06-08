@@ -1,6 +1,7 @@
 package com.industrial.agent.agent;
 
 import com.industrial.agent.agent.model.DiagnosticResponse;
+import com.industrial.agent.llm.TokenCostTracker;
 import com.industrial.agent.agent.tools.DeviceAlarmTool;
 import com.industrial.agent.agent.tools.DeviceDataTool;
 import com.industrial.agent.agent.tools.DiagnosisTool;
@@ -24,10 +25,13 @@ public class DeviceAgent {
     private final DeviceAlarmTool alarmTool;
     private final DeviceDataTool dataTool;
     private final DiagnosisTool diagnosisTool;
+    private final TokenCostTracker costTracker;
 
     public String chat(String userMessage) {
         log.info("[Agent] User message: {}", userMessage);
-        return buildAssistant().chat(userMessage);
+        String reply = buildAssistant().chat(userMessage);
+        costTracker.recordRequest(userMessage, reply);
+        return reply;
     }
 
     public TokenStream chatStream(String userMessage) {
