@@ -3,6 +3,8 @@ package com.industrial.agent.controller;
 import com.industrial.agent.agent.DeviceAgent;
 import com.industrial.agent.agent.MemoryComparisonService;
 import com.industrial.agent.agent.model.DiagnosticResponse;
+import com.industrial.agent.llm.TemperatureExperiment;
+import com.industrial.agent.llm.TokenCostTracker;
 import dev.langchain4j.service.TokenStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -23,6 +26,8 @@ public class AgentController {
 
     private final DeviceAgent deviceAgent;
     private final MemoryComparisonService memoryComparison;
+    private final TokenCostTracker costTracker;
+    private final TemperatureExperiment tempExperiment;
     @PostMapping("/chat")
     public ResponseEntity<Map<String, String>> chat(@RequestBody Map<String, String> request) {
         String message = request.getOrDefault("message", "");
@@ -94,6 +99,37 @@ public class AgentController {
         ));
         Map<String, List<String>> results = memoryComparison.compare(conversation);
         return ResponseEntity.ok(results);
+    }
+
+    @GetMapping("/stats")
+    public ResponseEntity<Map<String, Object>> stats() {
+        return ResponseEntity.ok(Map.of(
+                "totalRequests", costTracker.getTotalRequests(),
+                "totalInputTokens", costTracker.getTotalInputTokens(),
+                "totalOutputTokens", costTracker.getTotalOutputTokens(),
+                "estimatedCost", String.format("$%.4f", costTracker.getTotalCost())
+        ));
+    }
+
+    @PostMapping("/experiment/temperature")
+    public ResponseEntity<Map<String, Object>> runTemperatureExperiment() {
+        Map<Double, TemperatureExperiment.TempResult> results = tempExperiment.run();
+        Map<String, Object> response = new LinkedHashMap<>();
+        Map<String, Object> summary = new LinkedHashMap<>();
+        for (var entry : results.entrySet()) {
+            var r = entry.getValue();
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("consistency", String.format("%.2f", r.consistencyScore()));
+            item.put("totalTokens", r.totalTokens());
+            item.put("sampleResponse", r.responses().get(0).substring(0,
+                    Math.min(200, r.responses().get(0).length())));
+            summary.put(String.valueOf(r.temperature()), item);
+        }
+        response.put("experiment", "temperature vs consistency");
+        response.put("prompt", "CNC-001 vibration 4.8mm/s diagnosis");
+        response.put("runsPerTemperature", 10);
+        response.put("results", summary);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/health")
