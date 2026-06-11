@@ -16,6 +16,13 @@ langchain4j:
       log-requests: true
       log-responses: true
 
+# Milvus Vector Database (for RAG)
+milvus:
+  host: localhost
+  port: 19530
+  collection: industrial_knowledge
+  dimension: 384
+
 logging:
   level:
     dev.ai4j.openai4j: DEBUG

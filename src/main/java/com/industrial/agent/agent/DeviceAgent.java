@@ -5,6 +5,7 @@ import com.industrial.agent.llm.TokenCostTracker;
 import com.industrial.agent.agent.tools.DeviceAlarmTool;
 import com.industrial.agent.agent.tools.DeviceDataTool;
 import com.industrial.agent.agent.tools.DiagnosisTool;
+import com.industrial.agent.rag.KnowledgeBaseTool;
 import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.service.AiServices;
@@ -25,6 +26,7 @@ public class DeviceAgent {
     private final DeviceAlarmTool alarmTool;
     private final DeviceDataTool dataTool;
     private final DiagnosisTool diagnosisTool;
+    private final KnowledgeBaseTool knowledgeBaseTool;
     private final TokenCostTracker costTracker;
 
     public String chat(String userMessage) {
@@ -47,7 +49,7 @@ public class DeviceAgent {
         DiagnosticAssistant assistant = AiServices.builder(DiagnosticAssistant.class)
                 .chatLanguageModel(chatModel)
                 .chatMemory(chatMemory)
-                .tools(alarmTool, dataTool, diagnosisTool)
+                .tools(alarmTool, dataTool, diagnosisTool, knowledgeBaseTool)
                 .build();
         return assistant.diagnose(deviceId);
     }
@@ -56,7 +58,7 @@ public class DeviceAgent {
         return AiServices.builder(IndustrialAssistant.class)
                 .chatLanguageModel(chatModel)
                 .chatMemory(chatMemory)
-                .tools(alarmTool, dataTool, diagnosisTool)
+                .tools(alarmTool, dataTool, diagnosisTool, knowledgeBaseTool)
                 .build();
     }
 
