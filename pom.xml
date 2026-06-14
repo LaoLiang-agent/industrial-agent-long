@@ -42,6 +42,20 @@
             <version>${langchain4j.version}</version>
         </dependency>
 
+        <!-- LangChain4j Milvus for RAG vector storage -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-milvus</artifactId>
+            <version>${langchain4j.version}</version>
+        </dependency>
+
+        <!-- LangChain4j Embedding (local model, no API key) -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-embeddings-all-minilm-l6-v2</artifactId>
+            <version>${langchain4j.version}</version>
+        </dependency>
+
         <!-- MQTT Client (Eclipse Paho) for device simulator -->
         <dependency>
             <groupId>org.eclipse.paho</groupId>
