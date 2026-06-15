@@ -72,7 +72,8 @@ public class Bm25Retriever {
 
     private String[] tokenize(String text) {
         return text.toLowerCase()
-                .replaceAll("[^\\u4e00-\\u9faqa-z0-9]", " ")
+                .replaceAll("[^\\u4e00-\\u9fa5a-z0-9]", " ")
+                .trim()
                 .split("\\s+");
     }
 
