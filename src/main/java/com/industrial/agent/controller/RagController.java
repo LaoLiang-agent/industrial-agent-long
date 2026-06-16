@@ -1,13 +1,13 @@
 package com.industrial.agent.controller;
 
-import com.industrial.agent.rag.ChunkExperiment;
-import com.industrial.agent.rag.DocumentIngestionService;
-import com.industrial.agent.rag.IndustrialKnowledgeBase;
-import com.industrial.agent.rag.KnowledgeBaseTool;
+import com.industrial.agent.rag.*;
+import com.industrial.agent.rag.advanced.QueryRewriter;
+import com.industrial.agent.rag.advanced.RagEvaluator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -20,6 +20,8 @@ public class RagController {
     private final KnowledgeBaseTool knowledgeBaseTool;
     private final ChunkExperiment chunkExperiment;
     private final IndustrialKnowledgeBase knowledgeBase;
+    private final QueryRewriter queryRewriter;
+    private final RagEvaluator ragEvaluator;
 
     @PostMapping("/ingest")
     public ResponseEntity<Map<String, Object>> ingest() {
@@ -59,6 +61,42 @@ public class RagController {
                 "testQueries", testQueries,
                 "results", results
         ));
+    }
+
+    @PostMapping("/rewrite/hyde")
+    public ResponseEntity<Map<String, String>> hydeRewrite(@RequestBody Map<String, String> req) {
+        String query = req.getOrDefault("query", "轴承温度过高是什么原因");
+        return ResponseEntity.ok(Map.of("original", query, "hyde", queryRewriter.hydeRewrite(query)));
+    }
+
+    @PostMapping("/rewrite/multi-query")
+    public ResponseEntity<Map<String, Object>> multiQuery(@RequestBody Map<String, String> req) {
+        String query = req.getOrDefault("query", "CNC-001 振动异常怎么排查");
+        return ResponseEntity.ok(Map.of("original", query, "queries", queryRewriter.multiQueryRewrite(query)));
+    }
+
+    @PostMapping("/rewrite/step-back")
+    public ResponseEntity<Map<String, String>> stepBack(@RequestBody Map<String, String> req) {
+        String query = req.getOrDefault("query", "CNC-001 轴承温度72度太高了什么原因");
+        return ResponseEntity.ok(Map.of("original", query, "stepBack", queryRewriter.stepBackRewrite(query)));
+    }
+
+    @PostMapping("/evaluate")
+    public ResponseEntity<Map<String, Object>> evaluate() {
+        Map<String, String> testQueries = new LinkedHashMap<>();
+        testQueries.put("轴承温度过高是什么原因？", "润滑");
+        testQueries.put("电机振动超标怎么排查？", "振动");
+        testQueries.put("传感器信号漂移怎么处理？", "漂移");
+        testQueries.put("CNC主轴异响是什么问题？", "主轴");
+        testQueries.put("气缸动作缓慢怎么修？", "气缸");
+        testQueries.put("传送带跑偏怎么调整？", "传送带");
+        testQueries.put("液压系统压力波动怎么解决？", "液压");
+        testQueries.put("空压机高温停机怎么办？", "空压机");
+        testQueries.put("水泵不出水怎么排查？", "水泵");
+        testQueries.put("减速机漏油怎么处理？", "减速机");
+
+        var results = ragEvaluator.evaluate(testQueries, knowledgeBase.getAllEntries());
+        return ResponseEntity.ok(results);
     }
 
     @GetMapping("/stats")
