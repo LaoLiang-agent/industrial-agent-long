@@ -30,7 +30,7 @@ logging:
 
 # TDEngine time-series database (WebSocket JDBC)
 tdengine:
-  jdbc-url: jdbc:TAOS-WS://localhost:6041/industrial
+  jdbc-url: jdbc:TAOS-WS://localhost:6041
 
 # MQTT broker (EMQX) for device simulator
 mqtt:

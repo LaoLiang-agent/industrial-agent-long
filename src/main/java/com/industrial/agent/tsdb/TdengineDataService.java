@@ -24,7 +24,7 @@ public class TdengineDataService {
     private Connection conn;
 
     public TdengineDataService(
-            @Value("${tdengine.jdbc-url:jdbc:TAOS-WS://localhost:6041/industrial}") String jdbcUrl) {
+            @Value("${tdengine.jdbc-url:jdbc:TAOS-WS://localhost:6041}") String jdbcUrl) {
         this.jdbcUrl = jdbcUrl;
     }
 
