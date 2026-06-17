@@ -28,6 +28,10 @@ logging:
     dev.ai4j.openai4j: DEBUG
     com.industrial.agent: DEBUG
 
+# TDEngine time-series database (WebSocket JDBC)
+tdengine:
+  jdbc-url: jdbc:TAOS-WS://localhost:6041
+
 # MQTT broker (EMQX) for device simulator
 mqtt:
   broker-url: tcp://localhost:1883

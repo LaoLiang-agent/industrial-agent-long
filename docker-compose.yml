@@ -16,17 +16,19 @@ services:
       - emqx-data:/opt/emqx/data
       - emqx-log:/opt/emqx/log
 
-  # Future: TDEngine (time-series database)
-  # tdengine:
-  #   image: tdengine/tdengine:3.3.0.0
-  #   container_name: tdengine
-  #   ports:
-  #     - "6030:6030"   # REST
-  #     - "6041:6041"   # Native
-  #   environment:
-  #     - TAOS_FQDN=localhost
-  #   volumes:
-  #     - tdengine-data:/var/lib/taos
+  # TDEngine (time-series database) for device telemetry
+  tdengine:
+    image: tdengine/tsdb:latest
+    container_name: tdengine
+    ports:
+      - "6030:6030"   # REST API
+      - "6041:6041"   # Native (taosc)
+      - "6043:6043"   # taosKeeper
+      - "6060:6060"   # taosExplorer
+    environment:
+      - TAOS_FQDN=localhost
+    volumes:
+      - tdengine-data:/var/lib/taos
 
   # Milvus Vector Database (standalone) for RAG
   etcd:
@@ -80,4 +82,4 @@ volumes:
   etcd-data:
   minio-data:
   milvus-data:
-  # tdengine-data:
+  tdengine-data:

@@ -56,6 +56,13 @@
             <version>${langchain4j.version}</version>
         </dependency>
 
+        <!-- TDengine JDBC driver (WebSocket protocol) -->
+        <dependency>
+            <groupId>com.taosdata.jdbc</groupId>
+            <artifactId>taos-jdbcdriver</artifactId>
+            <version>3.8.3</version>
+        </dependency>
+
         <!-- MQTT Client (Eclipse Paho) for device simulator -->
         <dependency>
             <groupId>org.eclipse.paho</groupId>
