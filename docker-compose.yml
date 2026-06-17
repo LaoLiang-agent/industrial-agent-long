@@ -18,11 +18,13 @@ services:
 
   # TDEngine (time-series database) for device telemetry
   tdengine:
-    image: tdengine/tdengine:3.3.0.0
+    image: tdengine/tsdb:latest
     container_name: tdengine
     ports:
       - "6030:6030"   # REST API
       - "6041:6041"   # Native (taosc)
+      - "6043:6043"   # taosKeeper
+      - "6060:6060"   # taosExplorer
     environment:
       - TAOS_FQDN=localhost
     volumes:

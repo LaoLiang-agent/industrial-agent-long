@@ -1,21 +1,17 @@
 package com.industrial.agent.tsdb;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
+import java.sql.*;
 import java.time.Instant;
 import java.util.*;
 
 /**
- * TDEngine time-series data service via REST API.
+ * TDEngine time-series data service via WebSocket JDBC connection.
  * Schema: CREATE STABLE devices (ts timestamp, temp float, vibration float,
  *   pressure float, rpm float, current float) TAGS (device_id binary(64),
  *   device_type binary(32), factory binary(64))
@@ -24,16 +20,40 @@ import java.util.*;
 @Service
 public class TdengineDataService {
 
-    private final String baseUrl;
-    private final HttpClient http;
-    private final ObjectMapper json;
+    private final String jdbcUrl;
+    private Connection conn;
 
     public TdengineDataService(
-            @Value("${tdengine.url:http://localhost:6041}") String baseUrl,
-            ObjectMapper json) {
-        this.baseUrl = baseUrl;
-        this.http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
-        this.json = json;
+            @Value("${tdengine.jdbc-url:jdbc:TAOS-WS://localhost:6041/industrial}") String jdbcUrl) {
+        this.jdbcUrl = jdbcUrl;
+    }
+
+    @PostConstruct
+    public void connect() {
+        try {
+            conn = DriverManager.getConnection(jdbcUrl, "root", "taosdata");
+            log.info("[TDEngine] WebSocket connected: {}", jdbcUrl);
+            initSchema();
+        } catch (SQLException e) {
+            log.warn("[TDEngine] WebSocket connect failed (TDEngine not running?): {}", e.getMessage());
+        }
+    }
+
+    @PreDestroy
+    public void disconnect() {
+        if (conn != null) {
+            try { conn.close(); } catch (SQLException ignored) {}
+        }
+    }
+
+    private void ensureConnected() {
+        try {
+            if (conn == null || conn.isClosed()) {
+                conn = DriverManager.getConnection(jdbcUrl, "root", "taosdata");
+            }
+        } catch (SQLException e) {
+            log.warn("[TDEngine] Reconnect failed: {}", e.getMessage());
+        }
     }
 
     /** Initialize schema and super table. */
@@ -52,11 +72,13 @@ public class TdengineDataService {
     public void insert(String deviceId, String deviceType, String factory,
                         double temp, double vibration, double pressure,
                         double rpm, double current) {
+        ensureConnected();
         long ts = System.currentTimeMillis();
+        String table = "industrial.d_" + deviceId.replace("-", "_");
         String sql = String.format(
-                "INSERT INTO industrial.d_%s USING industrial.devices " +
+                "INSERT INTO %s USING industrial.devices " +
                 "TAGS ('%s', '%s', '%s') VALUES (%d, %.1f, %.2f, %.2f, %.0f, %.1f)",
-                deviceId.replace("-", "_"), deviceId, deviceType, factory,
+                table, deviceId, deviceType, factory,
                 ts, temp, vibration, pressure, rpm, current);
         execute(sql);
     }
@@ -88,7 +110,7 @@ public class TdengineDataService {
         return queryList(sql);
     }
 
-    /** Get aggregated stats (avg, max, min) for a device in a time window. */
+    /** Get aggregated stats (avg, max) for a device in a time window. */
     public Map<String, Object> queryStats(String deviceId, int minutes) {
         long ago = System.currentTimeMillis() - minutes * 60_000L;
         String table = "industrial.d_" + deviceId.replace("-", "_");
@@ -101,66 +123,48 @@ public class TdengineDataService {
         return querySingle(sql);
     }
 
-    private String execute(String sql) {
-        try {
-            var req = HttpRequest.newBuilder()
-                    .uri(URI.create(baseUrl + "/rest/sql"))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(sql))
-                    .timeout(Duration.ofSeconds(10))
-                    .build();
-            http.send(req, HttpResponse.BodyHandlers.ofString());
-        } catch (Exception e) {
+    private void execute(String sql) {
+        ensureConnected();
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+        } catch (SQLException e) {
             log.warn("[TDEngine] SQL failed: {}", e.getMessage());
         }
-        return "";
     }
 
     private Map<String, Object> querySingle(String sql) {
-        try {
-            var req = HttpRequest.newBuilder()
-                    .uri(URI.create(baseUrl + "/rest/sql"))
-                    .POST(HttpRequest.BodyPublishers.ofString(sql))
-                    .timeout(Duration.ofSeconds(10))
-                    .build();
-            var resp = http.send(req, HttpResponse.BodyHandlers.ofString());
-            JsonNode root = json.readTree(resp.body());
-            JsonNode data = root.path("data");
-            if (data.isArray() && data.size() > 0 && data.get(0).isArray()) {
+        ensureConnected();
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            ResultSetMetaData meta = rs.getMetaData();
+            if (rs.next()) {
                 Map<String, Object> row = new LinkedHashMap<>();
-                JsonNode cols = root.path("column_meta");
-                JsonNode vals = data.get(0);
-                for (int i = 0; i < cols.size() && i < vals.size(); i++) {
-                    row.put(cols.get(i).get(0).asText(), vals.get(i).asText());
+                for (int i = 1; i <= meta.getColumnCount(); i++) {
+                    row.put(meta.getColumnLabel(i), rs.getObject(i));
                 }
                 return row;
             }
-        } catch (Exception e) {
+        } catch (SQLException e) {
             log.warn("[TDEngine] Query failed: {}", e.getMessage());
         }
         return Map.of();
     }
 
     private List<Map<String, Object>> queryList(String sql) {
-        try {
-            var req = HttpRequest.newBuilder()
-                    .uri(URI.create(baseUrl + "/rest/sql"))
-                    .POST(HttpRequest.BodyPublishers.ofString(sql))
-                    .timeout(Duration.ofSeconds(10))
-                    .build();
-            var resp = http.send(req, HttpResponse.BodyHandlers.ofString());
-            JsonNode root = json.readTree(resp.body());
+        ensureConnected();
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            ResultSetMetaData meta = rs.getMetaData();
             List<Map<String, Object>> rows = new ArrayList<>();
-            JsonNode cols = root.path("column_meta");
-            for (JsonNode row : root.path("data")) {
+            while (rs.next()) {
                 Map<String, Object> m = new LinkedHashMap<>();
-                for (int i = 0; i < cols.size() && i < row.size(); i++) {
-                    m.put(cols.get(i).get(0).asText(), row.get(i).asText());
+                for (int i = 1; i <= meta.getColumnCount(); i++) {
+                    m.put(meta.getColumnLabel(i), rs.getObject(i));
                 }
                 rows.add(m);
             }
             return rows;
-        } catch (Exception e) {
+        } catch (SQLException e) {
             log.warn("[TDEngine] Query failed: {}", e.getMessage());
         }
         return List.of();
