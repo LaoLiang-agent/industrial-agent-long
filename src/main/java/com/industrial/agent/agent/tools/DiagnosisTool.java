@@ -27,9 +27,7 @@ public class DiagnosisTool {
         };
 
         return String.format(
-                "{\"alarmType\":\"%s\",\"diagnosis\":\"%s\",\"confidence\":0.85," +
-                "\"suggestedActions\":[\"生成维修工单\",\"通知值班工程师\"," +
-                "\"记录故障报告\"],\"priority\":\"HIGH\"}",
+                "{\"alarmType\":\"%s\",\"diagnosis\":\"%s\",\"confidence\":0.85,\"priority\":\"HIGH\"}",
                 alarmType, diagnosis
         );
     }

@@ -3,6 +3,8 @@ package com.industrial.agent.controller;
 import com.industrial.agent.agent.DeviceAgent;
 import com.industrial.agent.agent.MemoryComparisonService;
 import com.industrial.agent.agent.model.DiagnosticResponse;
+import com.industrial.agent.agent.model.WorkOrder;
+import com.industrial.agent.agent.tools.WorkOrderTool;
 import com.industrial.agent.llm.TemperatureExperiment;
 import com.industrial.agent.llm.TokenCostTracker;
 import dev.langchain4j.service.TokenStream;
@@ -28,6 +30,7 @@ public class AgentController {
     private final MemoryComparisonService memoryComparison;
     private final TokenCostTracker costTracker;
     private final TemperatureExperiment tempExperiment;
+    private final WorkOrderTool workOrderTool;
     @PostMapping("/chat")
     public ResponseEntity<Map<String, String>> chat(@RequestBody Map<String, String> request) {
         String message = request.getOrDefault("message", "");
@@ -129,6 +132,49 @@ public class AgentController {
         response.put("prompt", "CNC-001 vibration 4.8mm/s diagnosis");
         response.put("runsPerTemperature", 10);
         response.put("results", summary);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/workorder/{id}")
+    public ResponseEntity<Map<String, Object>> getWorkOrder(@PathVariable String id) {
+        WorkOrder wo = workOrderTool.findById(id);
+        if (wo == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(Map.of(
+                "workOrderId", wo.getWorkOrderId(),
+                "deviceId", wo.getDeviceId(),
+                "type", wo.getType(),
+                "priority", wo.getPriority(),
+                "description", wo.getDescription(),
+                "assignee", wo.getAssignee(),
+                "status", wo.getStatus(),
+                "createdTime", wo.getCreatedTime().toString(),
+                "suggestedActions", wo.getSuggestedActions() != null ? wo.getSuggestedActions() : List.of()
+        ));
+    }
+
+    @PostMapping("/diagnose-and-order")
+    public ResponseEntity<Map<String, Object>> diagnoseAndOrder(@RequestBody Map<String, String> request) {
+        String deviceId = request.getOrDefault("deviceId", "");
+        if (deviceId.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "deviceId is required"));
+        }
+        DiagnosticResponse diagnosis = deviceAgent.diagnose(deviceId);
+        String chatResult = deviceAgent.chat(
+                String.format("设备 %s 诊断结果如下：%s。如果需要维修，请创建工单。",
+                        deviceId, diagnosis.getAnalysis()));
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("deviceId", diagnosis.getDeviceId());
+        response.put("status", diagnosis.getStatus());
+        response.put("analysis", diagnosis.getAnalysis());
+        response.put("possibleCauses", diagnosis.getPossibleCauses());
+        response.put("suggestedActions", diagnosis.getSuggestedActions());
+        response.put("priority", diagnosis.getPriority());
+        response.put("requiresImmediateAction", diagnosis.getRequiresImmediateAction());
+        response.put("confidence", diagnosis.getConfidence());
+        response.put("chatReply", chatResult);
         return ResponseEntity.ok(response);
     }
 
