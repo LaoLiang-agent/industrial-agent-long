@@ -49,7 +49,7 @@ public class DeviceAgent {
     public DiagnosticResponse diagnose(String deviceId) {
         log.info("[Agent] Structured diagnosis for device: {}", deviceId);
         DiagnosticAssistant assistant = AiServices.builder(DiagnosticAssistant.class)
-                .chatLanguageModel(chatModel)
+                .chatModel(chatModel)
                 .chatMemory(chatMemory)
                 .tools(alarmTool, dataTool, diagnosisTool, knowledgeBaseTool, workOrderTool)
                 .build();
@@ -58,7 +58,7 @@ public class DeviceAgent {
 
     private IndustrialAssistant buildAssistant() {
         return AiServices.builder(IndustrialAssistant.class)
-                .chatLanguageModel(chatModel)
+                .chatModel(chatModel)
                 .chatMemory(chatMemory)
                 .tools(alarmTool, dataTool, diagnosisTool, knowledgeBaseTool, workOrderTool)
                 .build();

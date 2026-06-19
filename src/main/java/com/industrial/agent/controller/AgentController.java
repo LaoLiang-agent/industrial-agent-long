@@ -57,14 +57,14 @@ public class AgentController {
         }
 
         TokenStream tokenStream = deviceAgent.chatStream(message);
-        tokenStream.onNext(token -> {
+        tokenStream.onPartialResponse(token -> {
                     try {
                         emitter.send(SseEmitter.event().name("token").data(token));
                     } catch (IOException e) {
                         emitter.completeWithError(e);
                     }
                 })
-                .onComplete(response -> {
+                .onCompleteResponse(response -> {
                     log.info("[SSE] Stream completed, total tokens used: {}", response.tokenUsage());
                     emitter.complete();
                 })

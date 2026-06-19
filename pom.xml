@@ -18,7 +18,8 @@
 
     <properties>
         <java.version>21</java.version>
-        <langchain4j.version>0.35.0</langchain4j.version>
+        <langchain4j.version>1.16.3</langchain4j.version>
+        <langchain4j-beta.version>1.16.3-beta26</langchain4j-beta.version>
     </properties>
 
     <dependencies>
@@ -46,14 +47,14 @@
         <dependency>
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j-milvus</artifactId>
-            <version>${langchain4j.version}</version>
+            <version>${langchain4j-beta.version}</version>
         </dependency>
 
         <!-- LangChain4j Embedding (local model, no API key) -->
         <dependency>
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j-embeddings-all-minilm-l6-v2</artifactId>
-            <version>${langchain4j.version}</version>
+            <version>${langchain4j-beta.version}</version>
         </dependency>
 
         <!-- TDengine JDBC driver (WebSocket protocol) -->

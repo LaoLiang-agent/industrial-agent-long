@@ -60,7 +60,7 @@ public class TemperatureExperiment {
             long totalTokens = 0;
 
             for (int i = 0; i < RUNS_PER_TEMP; i++) {
-                String reply = model.generate(PROMPT);
+                String reply = model.chat(PROMPT);
                 responses.add(reply);
                 totalTokens += costTracker.countInputTokens(PROMPT) + costTracker.countOutputTokens(reply);
                 keywordsPerResponse.add(extractKeywords(reply));
