@@ -16,7 +16,10 @@ public class WorkOrder {
     private String description;
     private String assignee;
     private Instant createdTime;
-    private String status;     // PENDING/IN_PROGRESS/DONE
+    private String status;     // PENDING/IN_PROGRESS/COMPLETED/CLOSED/CANCELLED
+    private Instant updatedAt;
+    private Instant completedAt;
+    private Instant closedAt;
     private List<String> suggestedActions;
 
     public WorkOrder() {}
@@ -55,6 +58,15 @@ public class WorkOrder {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public Instant getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+
+    public Instant getCompletedAt() { return completedAt; }
+    public void setCompletedAt(Instant completedAt) { this.completedAt = completedAt; }
+
+    public Instant getClosedAt() { return closedAt; }
+    public void setClosedAt(Instant closedAt) { this.closedAt = closedAt; }
 
     public List<String> getSuggestedActions() { return suggestedActions; }
     public void setSuggestedActions(List<String> suggestedActions) { this.suggestedActions = suggestedActions; }

@@ -178,6 +178,16 @@ public class AgentController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/workorder/device/{deviceId}")
+    public ResponseEntity<List<WorkOrder>> listWorkOrdersByDevice(@PathVariable String deviceId) {
+        return ResponseEntity.ok(workOrderTool.findByDevice(deviceId));
+    }
+
+    @GetMapping("/workorder/stats")
+    public ResponseEntity<Map<String, Object>> workOrderStats() {
+        return ResponseEntity.ok(workOrderTool.stats());
+    }
+
     @GetMapping("/health")
     public ResponseEntity<Map<String, String>> health() {
         return ResponseEntity.ok(Map.of("status", "ok", "agent", "industrial-agent-long"));

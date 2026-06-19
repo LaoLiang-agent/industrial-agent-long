@@ -63,6 +63,17 @@
             <version>3.8.3</version>
         </dependency>
 
+        <!-- H2 embedded database for work order persistence -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jdbc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
         <!-- MQTT Client (Eclipse Paho) for device simulator -->
         <dependency>
             <groupId>org.eclipse.paho</groupId>
