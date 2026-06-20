@@ -4,6 +4,7 @@ import com.industrial.agent.agent.DeviceAgent;
 import com.industrial.agent.agent.MemoryComparisonService;
 import com.industrial.agent.agent.model.DiagnosticResponse;
 import com.industrial.agent.agent.model.WorkOrder;
+import com.industrial.agent.agent.router.RouterAgent;
 import com.industrial.agent.agent.tools.WorkOrderTool;
 import com.industrial.agent.llm.TemperatureExperiment;
 import com.industrial.agent.llm.TokenCostTracker;
@@ -31,6 +32,7 @@ public class AgentController {
     private final TokenCostTracker costTracker;
     private final TemperatureExperiment tempExperiment;
     private final WorkOrderTool workOrderTool;
+    private final RouterAgent routerAgent;
     @PostMapping("/chat")
     public ResponseEntity<Map<String, String>> chat(@RequestBody Map<String, String> request) {
         String message = request.getOrDefault("message", "");
@@ -186,6 +188,25 @@ public class AgentController {
     @GetMapping("/workorder/stats")
     public ResponseEntity<Map<String, Object>> workOrderStats() {
         return ResponseEntity.ok(workOrderTool.stats());
+    }
+
+    @PostMapping("/route/chat")
+    public ResponseEntity<Map<String, Object>> routeChat(@RequestBody Map<String, String> request) {
+        String message = request.getOrDefault("message", "");
+        if (message.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "message is required"));
+        }
+        RouterAgent.RouteResult result = routerAgent.route(message);
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("intent", result.intent().name());
+        response.put("latencyMs", result.latencyMs());
+        response.put("reply", result.reply());
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/route/stats")
+    public ResponseEntity<Map<String, Long>> routeStats() {
+        return ResponseEntity.ok(routerAgent.getStats());
     }
 
     @GetMapping("/health")
