@@ -34,7 +34,7 @@ public class QueryRewriter {
                 Question: %s
                 Hypothetical answer:""".formatted(query);
 
-        return chatModel.generate(prompt).trim();
+        return chatModel.chat(prompt).trim();
     }
 
     /**
@@ -50,7 +50,7 @@ public class QueryRewriter {
                 Question: %s
                 Queries:""".formatted(query);
 
-        String raw = chatModel.generate(prompt).trim();
+        String raw = chatModel.chat(prompt).trim();
         List<String> queries = new ArrayList<>();
         for (String line : raw.split("\n")) {
             String q = line.replaceAll("^[\\d\\.\\- ]+", "").trim();
@@ -75,6 +75,6 @@ public class QueryRewriter {
                 Specific question: %s
                 General question:""".formatted(query);
 
-        return chatModel.generate(prompt).trim();
+        return chatModel.chat(prompt).trim();
     }
 }

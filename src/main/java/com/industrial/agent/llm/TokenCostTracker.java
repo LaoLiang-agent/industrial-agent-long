@@ -1,6 +1,6 @@
 package com.industrial.agent.llm;
 
-import dev.langchain4j.model.openai.OpenAiTokenizer;
+import dev.langchain4j.model.openai.OpenAiTokenCountEstimator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -22,7 +22,7 @@ public class TokenCostTracker {
     private final AtomicLong totalOutputTokens = new AtomicLong(0);
     private final AtomicLong totalRequests = new AtomicLong(0);
 
-    private final OpenAiTokenizer tokenizer = new OpenAiTokenizer();
+    private final OpenAiTokenCountEstimator tokenizer = new OpenAiTokenCountEstimator("gpt-4");
 
     public int countInputTokens(String text) {
         return tokenizer.estimateTokenCountInText(text);

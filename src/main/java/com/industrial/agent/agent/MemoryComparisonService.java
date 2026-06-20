@@ -7,7 +7,7 @@ import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.memory.chat.TokenWindowChatMemory;
 import dev.langchain4j.model.openai.OpenAiChatModel;
-import dev.langchain4j.model.openai.OpenAiTokenizer;
+import dev.langchain4j.model.openai.OpenAiTokenCountEstimator;
 import dev.langchain4j.service.AiServices;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,7 +48,7 @@ public class MemoryComparisonService {
         results.put("messageWindow(4)", runConversation(msg4, conversation));
 
         // Strategy 3: Token window — keep messages up to 2000 tokens
-        ChatMemory token2k = TokenWindowChatMemory.withMaxTokens(2000, new OpenAiTokenizer());
+        ChatMemory token2k = TokenWindowChatMemory.withMaxTokens(2000, new OpenAiTokenCountEstimator("gpt-4"));
         results.put("tokenWindow(2000t)", runConversation(token2k, conversation));
 
         return results;
@@ -56,7 +56,7 @@ public class MemoryComparisonService {
 
     private List<String> runConversation(ChatMemory memory, List<String> messages) {
         Assistant assistant = AiServices.builder(Assistant.class)
-                .chatLanguageModel(chatModel)
+                .chatModel(chatModel)
                 .chatMemory(memory)
                 .tools(alarmTool, dataTool, diagnosisTool)
                 .build();
