@@ -5,6 +5,8 @@ import com.industrial.agent.agent.MemoryComparisonService;
 import com.industrial.agent.agent.model.DiagnosticResponse;
 import com.industrial.agent.agent.model.WorkOrder;
 import com.industrial.agent.agent.router.RouterAgent;
+import com.industrial.agent.agent.supervisor.ApprovalGate;
+import com.industrial.agent.agent.supervisor.SupervisorAgent;
 import com.industrial.agent.agent.tools.WorkOrderTool;
 import com.industrial.agent.llm.TemperatureExperiment;
 import com.industrial.agent.llm.TokenCostTracker;
@@ -33,6 +35,8 @@ public class AgentController {
     private final TemperatureExperiment tempExperiment;
     private final WorkOrderTool workOrderTool;
     private final RouterAgent routerAgent;
+    private final SupervisorAgent supervisorAgent;
+    private final ApprovalGate approvalGate;
     @PostMapping("/chat")
     public ResponseEntity<Map<String, String>> chat(@RequestBody Map<String, String> request) {
         String message = request.getOrDefault("message", "");
@@ -207,6 +211,35 @@ public class AgentController {
     @GetMapping("/route/stats")
     public ResponseEntity<Map<String, Long>> routeStats() {
         return ResponseEntity.ok(routerAgent.getStats());
+    }
+
+    @PostMapping("/supervisor/chat")
+    public ResponseEntity<Map<String, Object>> supervisorChat(@RequestBody Map<String, String> request) {
+        String message = request.getOrDefault("message", "");
+        if (message.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "message is required"));
+        }
+        SupervisorAgent.SupervisorResult result = supervisorAgent.execute(message);
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("tasks", result.tasks());
+        response.put("pendingApprovals", result.pendingApprovals());
+        response.put("summary", result.summary());
+        response.put("latencyMs", result.latencyMs());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/supervisor/approve/{id}")
+    public ResponseEntity<Map<String, String>> approveTask(@PathVariable String id) {
+        ApprovalGate.ApprovalStatus status = approvalGate.approve(id);
+        if (status == null) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(Map.of("approvalId", id, "status", status.name()));
+    }
+
+    @PostMapping("/supervisor/reject/{id}")
+    public ResponseEntity<Map<String, String>> rejectTask(@PathVariable String id) {
+        ApprovalGate.ApprovalStatus status = approvalGate.reject(id);
+        if (status == null) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(Map.of("approvalId", id, "status", status.name()));
     }
 
     @GetMapping("/health")
