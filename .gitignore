@@ -17,3 +17,4 @@ target/
 application-local.yml
 .env
 /data/
+/mcp-server/
