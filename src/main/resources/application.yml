@@ -52,5 +52,16 @@ mqtt:
   topic-device-data: industrial/devices/+/data
   topic-device-alarm: industrial/devices/+/alarm
 
+# Actuator metrics (Prometheus)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,metrics
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
 server:
   port: 8080
