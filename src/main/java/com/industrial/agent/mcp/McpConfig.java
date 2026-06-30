@@ -30,7 +30,7 @@ public class McpConfig {
     @Bean
     public McpClient mcpClient() {
         HttpMcpTransport transport = new HttpMcpTransport.Builder()
-                .sseUrl(mcpServerUrl + "/sse")
+                .sseUrl(mcpServerUrl + "/mcp/sse")
                 .timeout(Duration.ofSeconds(30))
                 .build();
 
