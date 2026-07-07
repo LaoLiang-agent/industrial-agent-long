@@ -10,6 +10,8 @@ import com.industrial.agent.agent.supervisor.SupervisorAgent;
 import com.industrial.agent.agent.tools.WorkOrderTool;
 import com.industrial.agent.llm.TemperatureExperiment;
 import com.industrial.agent.llm.TokenCostTracker;
+import com.industrial.agent.memory.MemoryManager;
+import com.industrial.agent.memory.ProfileEntry;
 import com.industrial.agent.runtime.AgentRuntime;
 import com.industrial.agent.runtime.RuntimeContext;
 import dev.langchain4j.service.TokenStream;
@@ -38,12 +40,13 @@ public class AgentController {
     private final SupervisorAgent supervisorAgent;
     private final ApprovalGate approvalGate;
     private final AgentRuntime runtime;
+    private final MemoryManager memory;
 
     public AgentController(DeviceAgent deviceAgent, MemoryComparisonService memoryComparison,
                            TokenCostTracker costTracker, TemperatureExperiment tempExperiment,
                            WorkOrderTool workOrderTool, RouterAgent routerAgent,
                            SupervisorAgent supervisorAgent, ApprovalGate approvalGate,
-                           AgentRuntime runtime) {
+                           AgentRuntime runtime, MemoryManager memory) {
         this.deviceAgent = deviceAgent;
         this.memoryComparison = memoryComparison;
         this.costTracker = costTracker;
@@ -53,6 +56,7 @@ public class AgentController {
         this.supervisorAgent = supervisorAgent;
         this.approvalGate = approvalGate;
         this.runtime = runtime;
+        this.memory = memory;
     }
     @PostMapping("/chat")
     public ResponseEntity<Map<String, Object>> chat(@RequestBody Map<String, String> request) {
@@ -277,6 +281,33 @@ public class AgentController {
         ApprovalGate.ApprovalStatus status = approvalGate.reject(id);
         if (status == null) return ResponseEntity.notFound().build();
         return ResponseEntity.ok(Map.of("approvalId", id, "status", status.name()));
+    }
+
+    @GetMapping("/memory/{sessionId}")
+    public ResponseEntity<Map<String, Object>> inspectMemory(
+            @PathVariable String sessionId,
+            @RequestParam(defaultValue = "anonymous") String userId) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("sessionId", sessionId);
+        response.put("recentTurns", memory.recentTurns(sessionId));
+        response.put("latestSummary", memory.summaryMemory().latest(sessionId).orElse(null));
+        response.put("userProfile", memory.profileMemory().forSubject("user", userId));
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/memory/profile")
+    public ResponseEntity<Map<String, Object>> writeProfile(@RequestBody Map<String, Object> request) {
+        ProfileEntry entry = new ProfileEntry(
+                String.valueOf(request.getOrDefault("subjectType", "user")),
+                String.valueOf(request.getOrDefault("subjectId", "anonymous")),
+                String.valueOf(request.getOrDefault("attribute", "")),
+                String.valueOf(request.getOrDefault("value", "")),
+                request.get("confidence") instanceof Number n ? n.doubleValue() : 0.0,
+                String.valueOf(request.getOrDefault("sourceEvidence", "")));
+        boolean written = memory.writeProfile(entry);
+        return ResponseEntity.ok(Map.of(
+                "written", written,
+                "reason", written ? "passed confidence gate" : "rejected: confidence below threshold"));
     }
 
     @GetMapping("/health")

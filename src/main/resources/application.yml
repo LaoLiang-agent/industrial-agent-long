@@ -16,6 +16,19 @@ spring:
     init:
       mode: always
       schema-locations: classpath:schema.sql
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+
+# Memory layer — L3/L4 PostgreSQL (dedicated datasource, separate from H2 work-order store)
+agent-memory:
+  datasource:
+    url: ${MEMORY_DB_URL:jdbc:postgresql://localhost:5432/agent_memory}
+    username: ${MEMORY_DB_USER:agent}
+    password: ${MEMORY_DB_PASSWORD:agent}
+    driver-class-name: org.postgresql.Driver
 
 # DeepSeek API (OpenAI-compatible endpoint)
 langchain4j:
@@ -70,6 +83,10 @@ agent:
     max-read-tools-per-request: 3
     max-write-tools-per-request: 1
     total-latency-ms: 10000
+  memory:
+    working-ttl-seconds: 600        # L1 TTL = 10 min
+    conversation-max-entries: 5     # L2 keep last 5 turns
+    profile-confidence-threshold: 0.9  # L4 write gate
 
 server:
   port: 8080
