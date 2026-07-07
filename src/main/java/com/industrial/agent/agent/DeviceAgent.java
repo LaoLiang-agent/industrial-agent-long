@@ -7,19 +7,19 @@ import com.industrial.agent.agent.tools.DeviceDataTool;
 import com.industrial.agent.agent.tools.DiagnosisTool;
 import com.industrial.agent.agent.tools.WorkOrderTool;
 import com.industrial.agent.rag.KnowledgeBaseTool;
+import com.industrial.agent.runtime.AgentRuntime;
+import com.industrial.agent.runtime.RuntimeContext;
 import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.TokenStream;
 import dev.langchain4j.service.UserMessage;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class DeviceAgent {
 
     private final OpenAiChatModel chatModel;
@@ -30,30 +30,50 @@ public class DeviceAgent {
     private final KnowledgeBaseTool knowledgeBaseTool;
     private final WorkOrderTool workOrderTool;
     private final TokenCostTracker costTracker;
+    private final AgentRuntime runtime;
 
-    public String chat(String userMessage) {
-        log.info("[Agent] User message: {}", userMessage);
-        String reply = buildAssistant().chat(userMessage);
-        costTracker.recordRequest(userMessage, reply);
-        return reply;
+    public DeviceAgent(OpenAiChatModel chatModel, ChatMemory chatMemory,
+                       DeviceAlarmTool alarmTool, DeviceDataTool dataTool,
+                       DiagnosisTool diagnosisTool, KnowledgeBaseTool knowledgeBaseTool,
+                       WorkOrderTool workOrderTool, TokenCostTracker costTracker,
+                       AgentRuntime runtime) {
+        this.chatModel = chatModel;
+        this.chatMemory = chatMemory;
+        this.alarmTool = alarmTool;
+        this.dataTool = dataTool;
+        this.diagnosisTool = diagnosisTool;
+        this.knowledgeBaseTool = knowledgeBaseTool;
+        this.workOrderTool = workOrderTool;
+        this.costTracker = costTracker;
+        this.runtime = runtime;
     }
 
-    public TokenStream chatStream(String userMessage) {
-        log.info("[Agent] Streaming user message: {}", userMessage);
+    public String chat(RuntimeContext ctx, String userMessage) {
+        return runtime.execute(ctx, () -> {
+            log.info("[Agent] trace={} userMessage={}", ctx.getTraceId(), userMessage);
+            String reply = buildAssistant().chat(userMessage);
+            costTracker.recordRequest(userMessage, reply);
+            return reply;
+        });
+    }
+
+    public TokenStream chatStream(RuntimeContext ctx, String userMessage) {
+        ctx.transition(com.industrial.agent.runtime.AgentState.SESSION_READY);
+        ctx.transition(com.industrial.agent.runtime.AgentState.CONTEXT_READY);
+        log.info("[Agent] trace={} streaming userMessage={}", ctx.getTraceId(), userMessage);
         return buildAssistant().chatStream(userMessage);
     }
 
-    /**
-     * Structured diagnostic response — LangChain4j extracts tool results into the POJO.
-     */
-    public DiagnosticResponse diagnose(String deviceId) {
-        log.info("[Agent] Structured diagnosis for device: {}", deviceId);
-        DiagnosticAssistant assistant = AiServices.builder(DiagnosticAssistant.class)
-                .chatModel(chatModel)
-                .chatMemory(chatMemory)
-                .tools(alarmTool, dataTool, diagnosisTool, knowledgeBaseTool, workOrderTool)
-                .build();
-        return assistant.diagnose(deviceId);
+    public DiagnosticResponse diagnose(RuntimeContext ctx, String deviceId) {
+        return runtime.execute(ctx, () -> {
+            log.info("[Agent] trace={} diagnosis for device={}", ctx.getTraceId(), deviceId);
+            DiagnosticAssistant assistant = AiServices.builder(DiagnosticAssistant.class)
+                    .chatModel(chatModel)
+                    .chatMemory(chatMemory)
+                    .tools(alarmTool, dataTool, diagnosisTool, knowledgeBaseTool, workOrderTool)
+                    .build();
+            return assistant.diagnose(deviceId);
+        });
     }
 
     private IndustrialAssistant buildAssistant() {
@@ -64,9 +84,6 @@ public class DeviceAgent {
                 .build();
     }
 
-    /**
-     * The AI Service interface — LangChain4j generates the implementation.
-     */
     interface IndustrialAssistant {
         @SystemMessage("""
                 你是一个工业设备运维专家，服务于智能工厂的设备监控与故障诊断。
@@ -99,10 +116,6 @@ public class DeviceAgent {
         TokenStream chatStream(String message);
     }
 
-    /**
-     * Structured output interface — returns a POJO instead of String.
-     * LangChain4j extracts fields from tool results and LLM reasoning.
-     */
     interface DiagnosticAssistant {
         @SystemMessage("""
                 你是一个工业设备故障诊断专家。你必须使用提供的工具查询设备数据，

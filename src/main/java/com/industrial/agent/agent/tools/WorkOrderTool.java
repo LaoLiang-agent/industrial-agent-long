@@ -1,6 +1,8 @@
 package com.industrial.agent.agent.tools;
 
 import com.industrial.agent.agent.model.WorkOrder;
+import com.industrial.agent.tool.SideEffect;
+import com.industrial.agent.tool.ToolExecutor;
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import lombok.extern.slf4j.Slf4j;
@@ -20,9 +22,11 @@ import java.util.Map;
 public class WorkOrderTool {
 
     private final JdbcTemplate jdbc;
+    private final ToolExecutor toolExecutor;
 
-    public WorkOrderTool(JdbcTemplate jdbc) {
+    public WorkOrderTool(JdbcTemplate jdbc, ToolExecutor toolExecutor) {
         this.jdbc = jdbc;
+        this.toolExecutor = toolExecutor;
     }
 
     @Tool("""
@@ -40,13 +44,31 @@ public class WorkOrderTool {
             @P("优先级：HIGH/MEDIUM/LOW") String priority,
             @P("故障描述和诊断结论") String description) {
 
+        String executionId = toolExecutor.generateExecutionId(
+                "session", "createWorkOrder", deviceId + type + priority + description);
+        long start = System.currentTimeMillis();
+
+        // Idempotency check
+        if (toolExecutor.isIdempotent(executionId)) {
+            String cached = toolExecutor.getCachedResult(executionId);
+            log.info("[WorkOrderTool] Duplicate call detected, returning cached result: {}", executionId);
+            toolExecutor.audit(executionId, "createWorkOrder", SideEffect.WRITE,
+                    deviceId + "," + type + "," + priority, cached, "DUPLICATE", System.currentTimeMillis() - start);
+            return cached;
+        }
+
         WorkOrder wo = new WorkOrder(deviceId, type, priority, description);
         jdbc.update(
                 "INSERT INTO work_orders (id, device_id, type, priority, description) VALUES (?,?,?,?,?)",
                 wo.getWorkOrderId(), wo.getDeviceId(), wo.getType(), wo.getPriority(), wo.getDescription()
         );
+        String result = wo.toString();
+        toolExecutor.cacheResult(executionId, result);
+        long duration = System.currentTimeMillis() - start;
+        toolExecutor.audit(executionId, "createWorkOrder", SideEffect.WRITE,
+                deviceId + "," + type + "," + priority, result, "OK", duration);
         log.info("[WorkOrderTool] Created {} for {} (priority={})", wo.getWorkOrderId(), deviceId, priority);
-        return wo.toString();
+        return result;
     }
 
     @Tool("将工单状态更新为 IN_PROGRESS（工程师开始处理）")

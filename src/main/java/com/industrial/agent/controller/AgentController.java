@@ -10,8 +10,9 @@ import com.industrial.agent.agent.supervisor.SupervisorAgent;
 import com.industrial.agent.agent.tools.WorkOrderTool;
 import com.industrial.agent.llm.TemperatureExperiment;
 import com.industrial.agent.llm.TokenCostTracker;
+import com.industrial.agent.runtime.AgentRuntime;
+import com.industrial.agent.runtime.RuntimeContext;
 import dev.langchain4j.service.TokenStream;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -26,7 +27,6 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequestMapping("/api/agent")
-@RequiredArgsConstructor
 public class AgentController {
 
     private final DeviceAgent deviceAgent;
@@ -37,19 +37,48 @@ public class AgentController {
     private final RouterAgent routerAgent;
     private final SupervisorAgent supervisorAgent;
     private final ApprovalGate approvalGate;
+    private final AgentRuntime runtime;
+
+    public AgentController(DeviceAgent deviceAgent, MemoryComparisonService memoryComparison,
+                           TokenCostTracker costTracker, TemperatureExperiment tempExperiment,
+                           WorkOrderTool workOrderTool, RouterAgent routerAgent,
+                           SupervisorAgent supervisorAgent, ApprovalGate approvalGate,
+                           AgentRuntime runtime) {
+        this.deviceAgent = deviceAgent;
+        this.memoryComparison = memoryComparison;
+        this.costTracker = costTracker;
+        this.tempExperiment = tempExperiment;
+        this.workOrderTool = workOrderTool;
+        this.routerAgent = routerAgent;
+        this.supervisorAgent = supervisorAgent;
+        this.approvalGate = approvalGate;
+        this.runtime = runtime;
+    }
     @PostMapping("/chat")
-    public ResponseEntity<Map<String, String>> chat(@RequestBody Map<String, String> request) {
+    public ResponseEntity<Map<String, Object>> chat(@RequestBody Map<String, String> request) {
         String message = request.getOrDefault("message", "");
         if (message.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "message is required"));
         }
-        String reply = deviceAgent.chat(message);
-        return ResponseEntity.ok(Map.of("reply", reply));
+        RuntimeContext ctx = runtime.createContext(
+                request.getOrDefault("sessionId", "default"),
+                request.getOrDefault("tenantId", "default"),
+                request.getOrDefault("userId", "anonymous"));
+        String reply = deviceAgent.chat(ctx, message);
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("reply", reply);
+        response.put("traceId", ctx.getTraceId());
+        response.put("elapsedMs", ctx.elapsedMs());
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter chatStream(@RequestBody Map<String, String> request) {
         String message = request.getOrDefault("message", "");
+        RuntimeContext ctx = runtime.createContext(
+                request.getOrDefault("sessionId", "default"),
+                request.getOrDefault("tenantId", "default"),
+                request.getOrDefault("userId", "anonymous"));
         SseEmitter emitter = new SseEmitter(120_000L); // 2 min timeout
 
         if (message.isBlank()) {
@@ -62,7 +91,7 @@ public class AgentController {
             return emitter;
         }
 
-        TokenStream tokenStream = deviceAgent.chatStream(message);
+        TokenStream tokenStream = deviceAgent.chatStream(ctx, message);
         tokenStream.onPartialResponse(token -> {
                     try {
                         emitter.send(SseEmitter.event().name("token").data(token));
@@ -94,7 +123,11 @@ public class AgentController {
         if (deviceId.isBlank()) {
             return ResponseEntity.badRequest().build();
         }
-        DiagnosticResponse result = deviceAgent.diagnose(deviceId);
+        RuntimeContext ctx = runtime.createContext(
+                request.getOrDefault("sessionId", "default"),
+                request.getOrDefault("tenantId", "default"),
+                request.getOrDefault("userId", "anonymous"));
+        DiagnosticResponse result = deviceAgent.diagnose(ctx, deviceId);
         return ResponseEntity.ok(result);
     }
 
@@ -166,8 +199,12 @@ public class AgentController {
         if (deviceId.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "deviceId is required"));
         }
-        DiagnosticResponse diagnosis = deviceAgent.diagnose(deviceId);
-        String chatResult = deviceAgent.chat(
+        RuntimeContext ctx = runtime.createContext(
+                request.getOrDefault("sessionId", "default"),
+                request.getOrDefault("tenantId", "default"),
+                request.getOrDefault("userId", "anonymous"));
+        DiagnosticResponse diagnosis = deviceAgent.diagnose(ctx, deviceId);
+        String chatResult = deviceAgent.chat(ctx,
                 String.format("设备 %s 诊断结果如下：%s。如果需要维修，请创建工单。",
                         deviceId, diagnosis.getAnalysis()));
 

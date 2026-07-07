@@ -63,5 +63,13 @@ management:
       prometheus:
         enabled: true
 
+# Agent hard budget
+agent:
+  budget:
+    max-llm-calls: 5
+    max-read-tools-per-request: 3
+    max-write-tools-per-request: 1
+    total-latency-ms: 10000
+
 server:
   port: 8080
