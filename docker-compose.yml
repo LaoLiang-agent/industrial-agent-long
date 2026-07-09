@@ -76,6 +76,39 @@ services:
       - milvus-data:/var/lib/milvus
     command: milvus run standalone
 
+  # Redis — L1 Working Memory + L2 Conversation Memory (Stream)
+  redis:
+    image: redis:7-alpine
+    container_name: agent-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL — L3 Summary Memory + L4 Profile Memory
+  postgres:
+    image: postgres:16-alpine
+    container_name: agent-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: agent_memory
+      POSTGRES_USER: agent
+      POSTGRES_PASSWORD: agent
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agent -d agent_memory"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # Spring Boot Agent Application
   app:
     build: .
@@ -86,6 +119,8 @@ services:
       - emqx
       - tdengine
       - milvus
+      - redis
+      - postgres
     environment:
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
       - SPRING_PROFILES_ACTIVE=local
@@ -134,3 +169,5 @@ volumes:
   tdengine-data:
   prometheus-data:
   grafana-data:
+  redis-data:
+  postgres-data:

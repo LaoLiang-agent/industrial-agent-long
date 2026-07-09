@@ -6,6 +6,7 @@ import com.industrial.agent.agent.tools.DeviceAlarmTool;
 import com.industrial.agent.agent.tools.DeviceDataTool;
 import com.industrial.agent.agent.tools.DiagnosisTool;
 import com.industrial.agent.agent.tools.WorkOrderTool;
+import com.industrial.agent.memory.MemoryManager;
 import com.industrial.agent.rag.KnowledgeBaseTool;
 import com.industrial.agent.runtime.AgentRuntime;
 import com.industrial.agent.runtime.RuntimeContext;
@@ -31,12 +32,13 @@ public class DeviceAgent {
     private final WorkOrderTool workOrderTool;
     private final TokenCostTracker costTracker;
     private final AgentRuntime runtime;
+    private final MemoryManager memory;
 
     public DeviceAgent(OpenAiChatModel chatModel, ChatMemory chatMemory,
                        DeviceAlarmTool alarmTool, DeviceDataTool dataTool,
                        DiagnosisTool diagnosisTool, KnowledgeBaseTool knowledgeBaseTool,
                        WorkOrderTool workOrderTool, TokenCostTracker costTracker,
-                       AgentRuntime runtime) {
+                       AgentRuntime runtime, MemoryManager memory) {
         this.chatModel = chatModel;
         this.chatMemory = chatMemory;
         this.alarmTool = alarmTool;
@@ -46,13 +48,21 @@ public class DeviceAgent {
         this.workOrderTool = workOrderTool;
         this.costTracker = costTracker;
         this.runtime = runtime;
+        this.memory = memory;
     }
 
     public String chat(RuntimeContext ctx, String userMessage) {
         return runtime.execute(ctx, () -> {
             log.info("[Agent] trace={} userMessage={}", ctx.getTraceId(), userMessage);
-            String reply = buildAssistant().chat(userMessage);
+            // L4+L3+L2 memory context injected ahead of the user message.
+            // (P1-2 PromptCompiler will formalize this as the L4 Memory layer.)
+            String contextBlock = memory.buildContextBlock(ctx);
+            String augmented = contextBlock.isBlank()
+                    ? userMessage
+                    : "已知上下文（供参考，勿复述）：\n" + contextBlock + "\n---\n用户问题：" + userMessage;
+            String reply = buildAssistant().chat(augmented);
             costTracker.recordRequest(userMessage, reply);
+            memory.recordTurn(ctx, userMessage, reply);
             return reply;
         });
     }
