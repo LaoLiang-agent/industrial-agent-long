@@ -87,6 +87,13 @@ agent:
     working-ttl-seconds: 600        # L1 TTL = 10 min
     conversation-max-entries: 5     # L2 keep last 5 turns
     profile-confidence-threshold: 0.9  # L4 write gate
+  prompt:
+    role: "工业设备运维专家，服务于智能工厂的设备监控与故障诊断"
+    policies:
+      - "禁止承诺赔付金额、退款金额等财务决策"
+      - "READ 类工具单轮最多调用 3 次，WRITE 类工具最多调用 1 次"
+      - "不确定时必须如实说明，不得编造数据"
+      - "创建工单前必须确认是硬件故障"
 
 server:
   port: 8080
