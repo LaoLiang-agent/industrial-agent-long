@@ -1,7 +1,6 @@
 package com.industrial.agent.edge;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,7 +10,6 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequestMapping("/api/edge")
-@ConditionalOnBean(ModelRouter.class)
 public class EdgeController {
 
     private final ModelRouter modelRouter;
