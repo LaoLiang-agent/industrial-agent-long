@@ -3,6 +3,7 @@ package com.industrial.agent.runtime;
 import com.industrial.agent.guardrail.CircuitBreaker;
 import com.industrial.agent.observability.AgentMetrics;
 import com.industrial.agent.observability.StructuredLogger;
+import com.industrial.agent.schedule.BudgetManager;
 import com.industrial.agent.tool.ToolBudget;
 import com.industrial.agent.tool.ToolExecutor;
 import org.springframework.stereotype.Component;
@@ -15,14 +16,16 @@ public class AgentRuntime {
 
     private final ToolExecutor toolExecutor;
     private final ToolBudget budget;
+    private final BudgetManager budgetManager;
     private final CircuitBreaker circuitBreaker;
     private final StructuredLogger tracer;
     private final AgentMetrics metrics;
 
-    public AgentRuntime(ToolExecutor toolExecutor, ToolBudget budget, CircuitBreaker circuitBreaker,
-                        StructuredLogger tracer, AgentMetrics metrics) {
+    public AgentRuntime(ToolExecutor toolExecutor, ToolBudget budget, BudgetManager budgetManager,
+                        CircuitBreaker circuitBreaker, StructuredLogger tracer, AgentMetrics metrics) {
         this.toolExecutor = toolExecutor;
         this.budget = budget;
+        this.budgetManager = budgetManager;
         this.circuitBreaker = circuitBreaker;
         this.tracer = tracer;
         this.metrics = metrics;
@@ -61,11 +64,13 @@ public class AgentRuntime {
         }
 
         try {
+            budgetManager.checkLlmBudget(ctx);
             prev = ctx.getCurrentState();
             ctx.transition(AgentState.MODEL_THINKING);
             tracer.stateTransition(ctx, prev, AgentState.MODEL_THINKING);
 
             T result = action.get();
+            budgetManager.recordLlmCall(ctx);
 
             prev = ctx.getCurrentState();
             ctx.transition(AgentState.POST_PROCESSING);
@@ -76,6 +81,12 @@ public class AgentRuntime {
             metrics.recordRequest(AgentState.COMPLETED, ctx.elapsedMs());
             tracer.requestCompleted(ctx, result != null ? result.toString() : null);
             return result;
+        } catch (BudgetManager.BudgetExceededException e) {
+            tracer.requestFailed(ctx, e.getMessage());
+            ctx.transition(AgentState.FAILED);
+            circuitBreaker.recordFailure();
+            metrics.recordRequest(AgentState.FAILED, ctx.elapsedMs());
+            throw e;
         } catch (ToolExecutor.ToolException e) {
             tracer.requestFailed(ctx, e.getMessage());
             ctx.transition(AgentState.FAILED);

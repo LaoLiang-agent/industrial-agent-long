@@ -15,6 +15,9 @@ public class RuntimeContext {
     private final Map<String, Object> workingMemory = new LinkedHashMap<>();
     private AgentState currentState;
     private String executionPlan;
+    private int llmCallCount;
+    private int readToolCount;
+    private int writeToolCount;
 
     public RuntimeContext(String traceId, String sessionId, String tenantId, String userId,
                           long deadlineMs) {
@@ -66,4 +69,11 @@ public class RuntimeContext {
     public void setExecutionPlan(String executionPlan) { this.executionPlan = executionPlan; }
     public List<ToolCallRecord> getToolCallHistory() { return List.copyOf(toolCallHistory); }
     public int getToolCallCount() { return toolCallHistory.size(); }
+
+    public int getLlmCallCount() { return llmCallCount; }
+    public void incrementLlmCalls() { this.llmCallCount++; }
+    public int getReadToolCount() { return readToolCount; }
+    public void incrementReadTools() { this.readToolCount++; }
+    public int getWriteToolCount() { return writeToolCount; }
+    public void incrementWriteTools() { this.writeToolCount++; }
 }
