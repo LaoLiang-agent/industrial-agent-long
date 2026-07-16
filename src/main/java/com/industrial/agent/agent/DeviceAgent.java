@@ -11,6 +11,7 @@ import com.industrial.agent.prompt.PromptCompiler;
 import com.industrial.agent.rag.KnowledgeBaseTool;
 import com.industrial.agent.runtime.AgentRuntime;
 import com.industrial.agent.runtime.RuntimeContext;
+import com.industrial.agent.schedule.AsyncSideCar;
 import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.service.AiServices;
@@ -30,16 +31,17 @@ public class DeviceAgent {
     private final DiagnosisTool diagnosisTool;
     private final KnowledgeBaseTool knowledgeBaseTool;
     private final WorkOrderTool workOrderTool;
-    private final TokenCostTracker costTracker;
     private final AgentRuntime runtime;
     private final MemoryManager memory;
     private final PromptCompiler promptCompiler;
+    private final AsyncSideCar sideCar;
 
     public DeviceAgent(OpenAiChatModel chatModel, ChatMemory chatMemory,
                        DeviceAlarmTool alarmTool, DeviceDataTool dataTool,
                        DiagnosisTool diagnosisTool, KnowledgeBaseTool knowledgeBaseTool,
-                       WorkOrderTool workOrderTool, TokenCostTracker costTracker,
-                       AgentRuntime runtime, MemoryManager memory, PromptCompiler promptCompiler) {
+                       WorkOrderTool workOrderTool,
+                       AgentRuntime runtime, MemoryManager memory, PromptCompiler promptCompiler,
+                       AsyncSideCar sideCar) {
         this.chatModel = chatModel;
         this.chatMemory = chatMemory;
         this.alarmTool = alarmTool;
@@ -47,19 +49,18 @@ public class DeviceAgent {
         this.diagnosisTool = diagnosisTool;
         this.knowledgeBaseTool = knowledgeBaseTool;
         this.workOrderTool = workOrderTool;
-        this.costTracker = costTracker;
         this.runtime = runtime;
         this.memory = memory;
         this.promptCompiler = promptCompiler;
+        this.sideCar = sideCar;
     }
 
     public String chat(RuntimeContext ctx, String userMessage) {
         return runtime.execute(ctx, () -> {
             log.info("[Agent] trace={} userMessage={}", ctx.getTraceId(), userMessage);
-            // L1–L5 compiled into the system message; L6 wraps the user turn.
             String reply = buildAssistant(ctx).chat(promptCompiler.compileTask(userMessage));
-            costTracker.recordRequest(userMessage, reply);
-            memory.recordTurn(ctx, userMessage, reply);
+            sideCar.recordCost(userMessage, reply);
+            sideCar.recordTurn(ctx, userMessage, reply);
             return reply;
         });
     }
