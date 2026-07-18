@@ -1,5 +1,8 @@
 package com.industrial.agent.rag.advanced;
 
+import com.industrial.agent.rag.IndustrialKnowledgeBase;
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -12,7 +15,10 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class Bm25Retriever {
+
+    private final IndustrialKnowledgeBase knowledgeBase;
 
     private final Map<Integer, String> docIndex = new HashMap<>();
     private final Map<String, Map<Integer, Double>> invertedIndex = new HashMap<>();
@@ -21,6 +27,11 @@ public class Bm25Retriever {
 
     private static final double K1 = 1.2;
     private static final double B = 0.75;
+
+    @PostConstruct
+    void init() {
+        index(IndustrialKnowledgeBase.ENTRIES);
+    }
 
     public void index(List<String> documents) {
         docIndex.clear(); invertedIndex.clear(); docLengths.clear();
@@ -78,4 +89,12 @@ public class Bm25Retriever {
     }
 
     public record ScoredDoc(int id, String text, double score) {}
+
+    public synchronized void rebuild(List<String> documents) {
+        index(documents);
+    }
+
+    public int size() {
+        return docIndex.size();
+    }
 }

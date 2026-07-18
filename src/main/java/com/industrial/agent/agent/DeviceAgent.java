@@ -9,6 +9,7 @@ import com.industrial.agent.agent.tools.WorkOrderTool;
 import com.industrial.agent.memory.MemoryManager;
 import com.industrial.agent.prompt.PromptCompiler;
 import com.industrial.agent.rag.KnowledgeBaseTool;
+import com.industrial.agent.rag.RagContextHolder;
 import com.industrial.agent.runtime.AgentRuntime;
 import com.industrial.agent.runtime.RuntimeContext;
 import com.industrial.agent.schedule.AsyncSideCar;
@@ -56,16 +57,22 @@ public class DeviceAgent {
     }
 
     public String chat(RuntimeContext ctx, String userMessage) {
-        return runtime.execute(ctx, () -> {
-            log.info("[Agent] trace={} userMessage={}", ctx.getTraceId(), userMessage);
-            String reply = buildAssistant(ctx).chat(promptCompiler.compileTask(userMessage));
-            sideCar.recordCost(userMessage, reply);
-            sideCar.recordTurn(ctx, userMessage, reply);
-            return reply;
-        });
+        RagContextHolder.set(ctx.getTenantId(), ctx.getUserId());
+        try {
+            return runtime.execute(ctx, () -> {
+                log.info("[Agent] trace={} userMessage={}", ctx.getTraceId(), userMessage);
+                String reply = buildAssistant(ctx).chat(promptCompiler.compileTask(userMessage));
+                sideCar.recordCost(userMessage, reply);
+                sideCar.recordTurn(ctx, userMessage, reply);
+                return reply;
+            });
+        } finally {
+            RagContextHolder.clear();
+        }
     }
 
     public TokenStream chatStream(RuntimeContext ctx, String userMessage) {
+        RagContextHolder.set(ctx.getTenantId(), ctx.getUserId());
         ctx.transition(com.industrial.agent.runtime.AgentState.SESSION_READY);
         ctx.transition(com.industrial.agent.runtime.AgentState.CONTEXT_READY);
         log.info("[Agent] trace={} streaming userMessage={}", ctx.getTraceId(), userMessage);

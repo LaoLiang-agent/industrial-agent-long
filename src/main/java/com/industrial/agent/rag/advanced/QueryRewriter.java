@@ -27,12 +27,11 @@ public class QueryRewriter {
      */
     public String hydeRewrite(String query) {
         String prompt = """
-                You are an industrial equipment expert. Given the question below,
-                write a short hypothetical answer (2-3 sentences) as if you were
-                reading from a maintenance manual. Use technical terminology.
+                你是一名工业设备专家。根据以下问题，写一段简短的假设性回答（2-3句话），
+                就像在阅读维修手册一样。使用专业技术术语。
 
-                Question: %s
-                Hypothetical answer:""".formatted(query);
+                问题：%s
+                假设性回答：""".formatted(query);
 
         return chatModel.chat(prompt).trim();
     }
@@ -42,13 +41,13 @@ public class QueryRewriter {
      */
     public List<String> multiQueryRewrite(String query) {
         String prompt = """
-                Given the user question below, generate 3 different search queries
-                that could help find relevant information in an industrial knowledge base.
-                Each query should approach the problem from a different angle.
-                Output one query per line, no numbers.
+                根据以下用户问题，生成3个不同的搜索查询，
+                以帮助在工业知识库中找到相关信息。
+                每个查询应从不同角度切入问题。
+                每行输出一个查询，不要编号。
 
-                Question: %s
-                Queries:""".formatted(query);
+                问题：%s
+                查询：""".formatted(query);
 
         String raw = chatModel.chat(prompt).trim();
         List<String> queries = new ArrayList<>();
@@ -67,13 +66,12 @@ public class QueryRewriter {
      */
     public String stepBackRewrite(String query) {
         String prompt = """
-                Given the specific troubleshooting question below, write a more
-                general background question that would help find foundational
-                knowledge about the topic. Step back from the specific device
-                to the general principle.
+                根据以下具体的故障排查问题，写一个更通用的背景问题，
+                以帮助查找该主题的基础知识。
+                从具体设备问题退一步，上升到通用原理层面。
 
-                Specific question: %s
-                General question:""".formatted(query);
+                具体问题：%s
+                通用问题：""".formatted(query);
 
         return chatModel.chat(prompt).trim();
     }

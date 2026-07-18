@@ -49,6 +49,17 @@ milvus:
   collection: industrial_knowledge
   dimension: 384
 
+# RAG hybrid retrieval
+rag:
+  rewrite-strategy: HYDE   # HYDE | MULTI_QUERY | NONE
+  rerank:
+    enabled: true
+  dense-top-k: 10
+  sparse-top-k: 10
+  fusion-top-k: 5
+  final-top-k: 3
+  min-score: 0.3
+
 logging:
   level:
     dev.ai4j.openai4j: DEBUG

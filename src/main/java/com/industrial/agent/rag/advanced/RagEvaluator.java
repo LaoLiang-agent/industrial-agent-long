@@ -75,8 +75,10 @@ public class RagEvaluator {
         for (Strategy s : Strategy.values()) {
             double hitRate = results.stream().filter(r -> hitByStrategy(r, s)).count() * 100.0 / total;
             double mrr = calculateMRR(results, s);
+            double ndcg = calculateNDCG(results, s);
             metrics.put(s.name() + "_hitRate", String.format("%.1f%%", hitRate));
             metrics.put(s.name() + "_MRR", String.format("%.3f", mrr));
+            metrics.put(s.name() + "_NDCG", String.format("%.3f", ndcg));
         }
 
         return metrics;
@@ -101,6 +103,27 @@ public class RagEvaluator {
             sum += rank > 0 ? 1.0 / rank : 0;
         }
         return sum / results.size();
+    }
+
+    private double calculateNDCG(List<QueryResult> results, Strategy s) {
+        // Binary relevance: 1 if hit, 0 otherwise. NDCG@10.
+        int k = 10;
+        double idcg = 0;
+        for (int i = 0; i < Math.min(k, results.size()); i++) idcg += 1.0 / (Math.log(i + 2) / Math.log(2));
+
+        double sum = 0;
+        for (QueryResult r : results) {
+            boolean hit = hitByStrategy(r, s);
+            int rank = switch (s) {
+                case DENSE -> r.denseRank();
+                case BM25 -> r.bm25Rank();
+                case FUSED -> r.fusedRank();
+            };
+            if (hit && rank > 0 && rank <= k) {
+                sum += 1.0 / (Math.log(rank + 1) / Math.log(2));
+            }
+        }
+        return idcg > 0 ? sum / (results.size() * idcg) : 0;
     }
 
     private boolean containsKeyword(List<EmbeddingMatch<TextSegment>> matches, String keyword) {
