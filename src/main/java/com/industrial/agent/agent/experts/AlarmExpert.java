@@ -1,6 +1,7 @@
 package com.industrial.agent.agent.experts;
 
 import com.industrial.agent.agent.tools.DeviceAlarmTool;
+import com.industrial.agent.skill.Skill;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.service.AiServices;
@@ -10,7 +11,7 @@ import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
-public class AlarmExpert {
+public class AlarmExpert implements Skill {
 
     private final ChatModel chatModel;
     private final DeviceAlarmTool alarmTool;
@@ -41,4 +42,10 @@ public class AlarmExpert {
                 .build();
         return assistant.chat(message);
     }
+
+    @Override
+    public String skillName() { return "ALARM_EXPERT"; }
+
+    @Override
+    public String description() { return "设备告警查询和解读"; }
 }

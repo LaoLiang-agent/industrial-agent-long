@@ -5,6 +5,7 @@ import com.industrial.agent.agent.tools.DeviceDataTool;
 import com.industrial.agent.agent.tools.DiagnosisTool;
 import com.industrial.agent.agent.tools.WorkOrderTool;
 import com.industrial.agent.rag.KnowledgeBaseTool;
+import com.industrial.agent.skill.Skill;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.service.AiServices;
@@ -14,7 +15,7 @@ import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
-public class DiagnosisExpert {
+public class DiagnosisExpert implements Skill {
 
     private final ChatModel chatModel;
     private final DeviceAlarmTool alarmTool;
@@ -61,4 +62,10 @@ public class DiagnosisExpert {
                 .build();
         return assistant.chat(message);
     }
+
+    @Override
+    public String skillName() { return "DIAGNOSIS_EXPERT"; }
+
+    @Override
+    public String description() { return "完整的设备故障诊断和工单创建"; }
 }

@@ -1,6 +1,10 @@
 package com.industrial.agent.agent.supervisor;
 
 import com.industrial.agent.agent.experts.*;
+import com.industrial.agent.rag.RagContextHolder;
+import com.industrial.agent.runtime.RuntimeContext;
+import com.industrial.agent.workflow.WorkflowEngine;
+import com.industrial.agent.workflow.WorkflowRegistry;
 import dev.langchain4j.model.chat.ChatModel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,11 +24,14 @@ public class SupervisorAgent {
     private final DiagnosisExpert diagnosisExpert;
     private final KnowledgeExpert knowledgeExpert;
     private final GeneralExpert generalExpert;
+    private final WorkflowEngine workflowEngine;
+    private final WorkflowRegistry workflowRegistry;
 
     public SupervisorAgent(ChatModel chatModel, TaskPlanner taskPlanner, ApprovalGate approvalGate,
                            AlarmExpert alarmExpert, DataExpert dataExpert,
                            DiagnosisExpert diagnosisExpert, KnowledgeExpert knowledgeExpert,
-                           GeneralExpert generalExpert) {
+                           GeneralExpert generalExpert,
+                           WorkflowEngine workflowEngine, WorkflowRegistry workflowRegistry) {
         this.chatModel = chatModel;
         this.taskPlanner = taskPlanner;
         this.approvalGate = approvalGate;
@@ -33,35 +40,65 @@ public class SupervisorAgent {
         this.diagnosisExpert = diagnosisExpert;
         this.knowledgeExpert = knowledgeExpert;
         this.generalExpert = generalExpert;
+        this.workflowEngine = workflowEngine;
+        this.workflowRegistry = workflowRegistry;
     }
 
     public SupervisorResult execute(String message) {
-        long start = System.currentTimeMillis();
+        return execute(message, null);
+    }
 
-        List<SubTask> tasks = taskPlanner.plan(message);
-        List<SubTaskResult> results = new ArrayList<>();
-        List<String> pendingApprovals = new ArrayList<>();
-
-        for (SubTask task : tasks) {
-            if (approvalGate.requiresApproval(task)) {
-                String approvalId = approvalGate.requestApproval(task);
-                pendingApprovals.add(approvalId);
-                results.add(new SubTaskResult(task,
-                        String.format("需要人工审批（%s），任务已暂停：%s", approvalId, task.task()),
-                        "AWAITING_APPROVAL"));
-            } else {
-                String reply = dispatch(task);
-                results.add(new SubTaskResult(task, reply));
-            }
+    public SupervisorResult execute(String message, RuntimeContext ctx) {
+        if (ctx != null) {
+            RagContextHolder.set(ctx.getTenantId(), ctx.getUserId());
         }
+        try {
+            long start = System.currentTimeMillis();
 
-        String summary = summarize(message, results);
-        long elapsed = System.currentTimeMillis() - start;
+            // Pre-check: if message matches a deterministic workflow, delegate directly
+            var wf = workflowRegistry.findByIntentKeywords(message);
+            if (wf.isPresent()) {
+                var wfResult = workflowEngine.execute(wf.get(), message, ctx);
+                String summary = "工作流执行" + (wfResult.completed() ? "完成" : "暂停（等待审批）")
+                        + " (" + wfResult.nodeExecutions().size() + " 步骤)";
+                long elapsed = System.currentTimeMillis() - start;
+                return new SupervisorResult(
+                        List.of(new SubTask("WORKFLOW", message, "L1")),
+                        List.of(new SubTaskResult(
+                                new SubTask("WORKFLOW", message, "L1"),
+                                wfResult.accumulatedContext())),
+                        summary,
+                        wfResult.pendingApprovals(),
+                        elapsed);
+            }
 
-        log.info("[Supervisor] Executed {} tasks ({}ms), {} pending approvals",
-                tasks.size(), elapsed, pendingApprovals.size());
+            List<SubTask> tasks = taskPlanner.plan(message);
+            List<SubTaskResult> results = new ArrayList<>();
+            List<String> pendingApprovals = new ArrayList<>();
 
-        return new SupervisorResult(tasks, results, summary, pendingApprovals, elapsed);
+            for (SubTask task : tasks) {
+                if (approvalGate.requiresApproval(task)) {
+                    String approvalId = approvalGate.requestApproval(task);
+                    pendingApprovals.add(approvalId);
+                    results.add(new SubTaskResult(task,
+                            String.format("需要人工审批（%s），任务已暂停：%s", approvalId, task.task()),
+                            "AWAITING_APPROVAL"));
+                } else {
+                    String reply = dispatch(task);
+                    results.add(new SubTaskResult(task, reply));
+                }
+            }
+
+            String summary = summarize(message, results);
+            long elapsed = System.currentTimeMillis() - start;
+
+            log.info("[Supervisor] Executed {} tasks ({}ms), {} pending approvals",
+                    tasks.size(), elapsed, pendingApprovals.size());
+
+            return new SupervisorResult(tasks, results, summary, pendingApprovals, elapsed);
+        } finally {
+            RagContextHolder.clear();
+        }
     }
 
     private String dispatch(SubTask task) {

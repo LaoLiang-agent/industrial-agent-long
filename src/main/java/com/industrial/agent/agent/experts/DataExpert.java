@@ -1,6 +1,7 @@
 package com.industrial.agent.agent.experts;
 
 import com.industrial.agent.agent.tools.DeviceDataTool;
+import com.industrial.agent.skill.Skill;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.service.AiServices;
@@ -10,7 +11,7 @@ import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
-public class DataExpert {
+public class DataExpert implements Skill {
 
     private final ChatModel chatModel;
     private final DeviceDataTool dataTool;
@@ -43,4 +44,10 @@ public class DataExpert {
                 .build();
         return assistant.chat(message);
     }
+
+    @Override
+    public String skillName() { return "DATA_EXPERT"; }
+
+    @Override
+    public String description() { return "设备遥测数据查询和趋势分析"; }
 }

@@ -1,0 +1,50 @@
+name: maintenance-workflow
+description: "设备告警查询 → 数据分析 → 知识检索 → 诊断 → 工单创建 → 审批 → 通知"
+intentKeywords:
+  - "维修"
+  - "工单"
+  - "停机"
+  - "故障处理"
+  - "报修"
+nodes:
+  - id: query-alarms
+    type: EXPERT_CALL
+    label: "查询设备告警"
+    config:
+      skillName: "ALARM_EXPERT"
+  - id: query-data
+    type: EXPERT_CALL
+    label: "查询设备数据"
+    config:
+      skillName: "DATA_EXPERT"
+  - id: retrieve-knowledge
+    type: TOOL_CALL
+    label: "检索维修知识库"
+    config:
+      toolName: "searchKnowledgeBase"
+  - id: diagnose
+    type: EXPERT_CALL
+    label: "故障诊断"
+    config:
+      skillName: "DIAGNOSIS_EXPERT"
+  - id: create-workorder
+    type: TOOL_CALL
+    label: "创建维修工单"
+    config:
+      toolName: "createWorkOrder"
+      requiresApproval: true
+  - id: approval-gate
+    type: APPROVAL
+    label: "等待主管审批"
+  - id: notify
+    type: NOTIFY
+    label: "通知维修工程师"
+    config:
+      message: "工单已审批，请前往现场进行维修处理"
+edges:
+  - {from: query-alarms, to: query-data}
+  - {from: query-data, to: retrieve-knowledge}
+  - {from: retrieve-knowledge, to: diagnose}
+  - {from: diagnose, to: create-workorder}
+  - {from: create-workorder, to: approval-gate}
+  - {from: approval-gate, to: notify}

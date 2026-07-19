@@ -1,5 +1,6 @@
 package com.industrial.agent.agent.experts;
 
+import com.industrial.agent.skill.Skill;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.service.AiServices;
@@ -9,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
-public class GeneralExpert {
+public class GeneralExpert implements Skill {
 
     private final ChatModel chatModel;
 
@@ -34,4 +35,10 @@ public class GeneralExpert {
                 .build();
         return assistant.chat(message);
     }
+
+    @Override
+    public String skillName() { return "GENERAL_EXPERT"; }
+
+    @Override
+    public String description() { return "工业设备运维一般性问答"; }
 }

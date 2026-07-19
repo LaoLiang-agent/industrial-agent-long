@@ -1,6 +1,7 @@
 package com.industrial.agent.agent.experts;
 
 import com.industrial.agent.rag.KnowledgeBaseTool;
+import com.industrial.agent.skill.Skill;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.service.AiServices;
@@ -10,7 +11,7 @@ import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
-public class KnowledgeExpert {
+public class KnowledgeExpert implements Skill {
 
     private final ChatModel chatModel;
     private final KnowledgeBaseTool knowledgeBaseTool;
@@ -41,4 +42,10 @@ public class KnowledgeExpert {
                 .build();
         return assistant.chat(message);
     }
+
+    @Override
+    public String skillName() { return "KNOWLEDGE_EXPERT"; }
+
+    @Override
+    public String description() { return "工业设备维修知识检索"; }
 }

@@ -21,3 +21,4 @@ application-local.yml
 
 # MQTT bridge runtime lock dir
 *-bridge-tcplocalhost*/
+/.cursor/

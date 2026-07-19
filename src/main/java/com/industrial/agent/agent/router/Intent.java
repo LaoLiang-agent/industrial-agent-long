@@ -5,5 +5,6 @@ public enum Intent {
     DATA,
     DIAGNOSIS,
     KNOWLEDGE,
+    WORKFLOW,
     GENERAL
 }

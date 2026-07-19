@@ -8,6 +8,8 @@ import com.industrial.agent.agent.router.RouterAgent;
 import com.industrial.agent.agent.supervisor.ApprovalGate;
 import com.industrial.agent.agent.supervisor.SupervisorAgent;
 import com.industrial.agent.agent.tools.WorkOrderTool;
+import com.industrial.agent.workflow.WorkflowEngine;
+import com.industrial.agent.workflow.WorkflowRegistry;
 import com.industrial.agent.llm.TemperatureExperiment;
 import com.industrial.agent.llm.TokenCostTracker;
 import com.industrial.agent.memory.MemoryManager;
@@ -41,12 +43,15 @@ public class AgentController {
     private final ApprovalGate approvalGate;
     private final AgentRuntime runtime;
     private final MemoryManager memory;
+    private final WorkflowEngine workflowEngine;
+    private final WorkflowRegistry workflowRegistry;
 
     public AgentController(DeviceAgent deviceAgent, MemoryComparisonService memoryComparison,
                            TokenCostTracker costTracker, TemperatureExperiment tempExperiment,
                            WorkOrderTool workOrderTool, RouterAgent routerAgent,
                            SupervisorAgent supervisorAgent, ApprovalGate approvalGate,
-                           AgentRuntime runtime, MemoryManager memory) {
+                           AgentRuntime runtime, MemoryManager memory,
+                           WorkflowEngine workflowEngine, WorkflowRegistry workflowRegistry) {
         this.deviceAgent = deviceAgent;
         this.memoryComparison = memoryComparison;
         this.costTracker = costTracker;
@@ -57,6 +62,8 @@ public class AgentController {
         this.approvalGate = approvalGate;
         this.runtime = runtime;
         this.memory = memory;
+        this.workflowEngine = workflowEngine;
+        this.workflowRegistry = workflowRegistry;
     }
     @PostMapping("/chat")
     public ResponseEntity<Map<String, Object>> chat(@RequestBody Map<String, String> request) {
@@ -308,6 +315,38 @@ public class AgentController {
         return ResponseEntity.ok(Map.of(
                 "written", written,
                 "reason", written ? "passed confidence gate" : "rejected: confidence below threshold"));
+    }
+
+    @GetMapping("/workflows")
+    public ResponseEntity<Map<String, Object>> listWorkflows() {
+        var workflows = workflowRegistry.listAll().stream()
+                .map(w -> Map.of(
+                        "name", w.name(),
+                        "description", w.description(),
+                        "nodes", w.nodes().size()))
+                .toList();
+        return ResponseEntity.ok(Map.of("workflows", workflows));
+    }
+
+    @PostMapping("/workflow/execute")
+    public ResponseEntity<Map<String, Object>> executeWorkflow(@RequestBody Map<String, String> request) {
+        String name = request.getOrDefault("workflow", "");
+        String message = request.getOrDefault("message", "");
+        if (name.isBlank() || message.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "workflow and message are required"));
+        }
+        var wf = workflowRegistry.findByName(name);
+        if (wf.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "workflow not found: " + name));
+        }
+        var result = workflowEngine.execute(wf.get(), message, null);
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("workflowName", result.workflowName());
+        response.put("completed", result.completed());
+        response.put("nodeExecutions", result.nodeExecutions());
+        response.put("pendingApprovals", result.pendingApprovals());
+        response.put("latencyMs", result.latencyMs());
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/health")
