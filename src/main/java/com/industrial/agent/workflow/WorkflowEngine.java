@@ -31,7 +31,7 @@ public class WorkflowEngine {
     }
 
     @PostConstruct
-    void init() {
+    public void init() {
         skills.forEach(s -> skillMap.put(s.skillName(), s));
         log.info("[WorkflowEngine] Registered {} skills: {}", skillMap.size(), skillMap.keySet());
     }

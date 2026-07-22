@@ -115,6 +115,13 @@
             <artifactId>jackson-databind</artifactId>
         </dependency>
 
+        <!-- Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Actuator + Micrometer Prometheus for metrics -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
